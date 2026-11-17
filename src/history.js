@@ -1,6 +1,6 @@
 const DB_NAME = "yoga-snap-db";
 const STORE = "snaps";
-const MAX = 300;
+const MAX = 120;
 
 let dbPromise = null;
 
@@ -50,6 +50,8 @@ export class SnapshotBook {
   ready() { return this._readyP; }
 
   get all() { return this.items; }
+
+  get(id) { return this.items.find((i) => i.id === id) || null; }
 
   add(item) {
     const rec = {
