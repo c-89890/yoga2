@@ -548,7 +548,13 @@ function takeSnapshot(isAuto) {
   g.font = `400 ${Math.round(W / 40)}px -apple-system,"PingFang SC",sans-serif`;
   g.fillText(state.pose.name, pad * 1.6, pad * 1.4 + W / 22 + 8);
 
-  const full = c.toDataURL("image/jpeg", 0.92);
+  const maxSide = 1080;
+  const scale = Math.min(1, maxSide / Math.max(W, H));
+  const fc = document.createElement("canvas");
+  fc.width = Math.round(W * scale);
+  fc.height = Math.round(H * scale);
+  fc.getContext("2d").drawImage(c, 0, 0, fc.width, fc.height);
+  const full = fc.toDataURL("image/jpeg", 0.85);
 
   const t = document.createElement("canvas");
   const tw = 360, th = Math.round((tw * H) / W);
@@ -558,6 +564,7 @@ function takeSnapshot(isAuto) {
 
   const item = snaps.add({
     thumb,
+    full,
     pose: state.pose.name,
     poseId: state.pose.id,
     score: s.score,
@@ -579,48 +586,79 @@ function takeSnapshot(isAuto) {
   }).catch(() => {});
 }
 
-/* ---------------- 记录抽屉：图片 + 说明 ---------------- */
+/* ---------------- 记录抽屉 ---------------- */
 function renderGallery() {
   const items = snaps.all;
   if (!items.length) {
-    galleryList.innerHTML = `<div class="empty">还没有定格。<br>练习时点「📸 定格」或打开「🤖 自动」，会自动保存姿势截图、分数和纠正建议。</div>`;
+    galleryList.innerHTML = `<div class="empty">还没有定格。<br>练习时点「📸 定格」或「🤖 自动」，会保存截图、分数和纠正建议。</div>`;
     return;
   }
 
   galleryList.innerHTML = items.map((it) => {
     const s = Math.round(it.score * 100);
     const color = s >= 90 ? "#3ddc97" : s >= 75 ? "#a8e6a1" : s >= 60 ? "#ffb020" : "#ff5d5d";
-    const cues = (it.cues || []).filter(Boolean);
-    return `<figure class="snap">
+    return `<figure class="snap" data-open="${it.id}">
       <img src="${it.thumb}" alt="">
       <figcaption>
         <b style="color:${color}">${s} 分</b>
         <span>${it.pose}${it.auto ? " · 自动" : ""}</span>
         <time>${new Date(it.ts).toLocaleString("zh-CN", { hour12: false })}</time>
-        ${cues.length
-          ? `<ul class="snap-cues">${cues.slice(0, 3).map(c => `<li>${c}</li>`).join("")}</ul>`
-          : `<div style="color:var(--ok)">姿势标准，没有需要调整的地方</div>`}
-        <div class="snap-btns">
-          <button data-dl="${it.id}">下载</button>
-          <button data-del="${it.id}">删除</button>
-        </div>
       </figcaption>
     </figure>`;
   }).join("");
 }
 
+/* ---------------- 大图查看器 ---------------- */
+const viewer = $("viewer");
+let viewingId = null;
+
+function openViewer(id) {
+  const it = snaps.get(id);
+  if (!it) return;
+  viewingId = id;
+
+  $("vImg").src = it.full || it.thumb;
+  $("vScore").textContent = Math.round(it.score * 100) + " 分";
+  $("vPose").textContent = it.pose + (it.auto ? " · 自动定格" : "");
+  $("vTime").textContent = new Date(it.ts).toLocaleString("zh-CN", { hour12: false });
+
+  const cues = (it.cues || []).filter(Boolean);
+  $("vCues").innerHTML = cues.length
+    ? cues.map(c => `<li>${c}</li>`).join("")
+    : `<li style="color:var(--ok);list-style:none;margin-left:-16px">姿势标准，没有需要调整的地方</li>`;
+
+  viewer.hidden = false;
+}
+
+function closeViewer() {
+  viewer.hidden = true;
+  viewingId = null;
+}
+
+$("vClose").addEventListener("click", closeViewer);
+
+$("vSave").addEventListener("click", () => {
+  const it = snaps.get(viewingId);
+  if (!it) return;
+  const a = document.createElement("a");
+  a.href = it.full || it.thumb;
+  a.download = `yoga-${it.pose}-${Math.round(it.score * 100)}-${it.id}.jpg`;
+  a.click();
+});
+
+$("vDel").addEventListener("click", () => {
+  if (!viewingId) return;
+  if (!confirm("删除这条记录？")) return;
+  snaps.remove(viewingId);
+  fullCache.delete(viewingId);
+  closeViewer();
+  renderGallery();
+  toast("已删除");
+});
+
 galleryList.addEventListener("click", (e) => {
-  const dl = e.target.dataset?.dl;
-  const del = e.target.dataset?.del;
-  if (dl) {
-    const it = snaps.all.find((i) => i.id === dl);
-    if (!it) return;
-    const a = document.createElement("a");
-    a.href = fullCache.get(dl) || it.thumb;
-    a.download = `yoga-${it.pose}-${Math.round(it.score * 100)}-${dl}.jpg`;
-    a.click();
-  }
-  if (del) { snaps.remove(del); fullCache.delete(del); renderGallery(); }
+  const card = e.target.closest("[data-open]");
+  if (card) openViewer(card.dataset.open);
 });
 
 $("galleryBtn").addEventListener("click", () => { renderGallery(); gallery.hidden = false; });
