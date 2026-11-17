@@ -278,6 +278,8 @@ function updatePoseCard() {
 }
 
 /* ---------------- UI 初始化 ---------------- */
+await snaps.ready();
+
 POSES.forEach((p, i) => {
   const o = document.createElement("option");
   o.value = i; o.textContent = p.name;
@@ -286,6 +288,7 @@ POSES.forEach((p, i) => {
 
 updatePoseCard();
 applyVisibility();
+renderGallery();
 
 poseSelect.addEventListener("change", () => {
   state.pose = POSES[+poseSelect.value];
@@ -395,7 +398,6 @@ function tick() {
   updateUI(score, out);
   pushScore(score);
 
-  // 自动定格：分数 ≥90 且保持 2 秒，冷却 15 秒
   if (autoSnap && score >= 0.90 && state.hold >= 2000 && now - lastAutoAt > 15000) {
     lastAutoAt = now;
     takeSnapshot(true);
@@ -579,7 +581,7 @@ function takeSnapshot(isAuto) {
 
 /* ---------------- 记录抽屉：图片 + 说明 ---------------- */
 function renderGallery() {
-  const items = snaps.all.slice().reverse();
+  const items = snaps.all;
   if (!items.length) {
     galleryList.innerHTML = `<div class="empty">还没有定格。<br>练习时点「📸 定格」或打开「🤖 自动」，会自动保存姿势截图、分数和纠正建议。</div>`;
     return;
