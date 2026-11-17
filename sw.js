@@ -1,4 +1,4 @@
-const APP_CACHE = "yoga-app-v11";
+const APP_CACHE = "yoga-app-v12";
 const CDN_CACHE = "yoga-cdn-v1";
 
 const ASSETS = [
