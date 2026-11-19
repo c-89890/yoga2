@@ -173,6 +173,11 @@
 </style>
 </head>
 <body>
+  <script>
+  try {
+    if (!localStorage.getItem("user")) location.replace("./login.html");
+  } catch (e) { location.replace("./login.html"); }
+</script>
 <header>
   <span class="dot" id="dot"></span>
   <h1>Yoga Coach · 实时姿态检测</h1>
